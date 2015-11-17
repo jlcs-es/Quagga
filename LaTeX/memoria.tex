@@ -115,6 +115,26 @@ Esta topología lógica la llevamos a la práctica con Virtual Box, con cuatro m
 
 Con el NAT conseguimos salida a internet para poder descargar los ficheros de configuración. Con las otras conseguimos simular los switchs y conectar cada router por las interfaces correspondientes.
 
+La configuración de \textit{/etc/network/interfaces} sería, por ejemplo para R1:
+
+\begin{BVerbatim}
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet6 static
+address 3FE0:0:1::1
+netmask 64
+
+auto eth1
+iface eth1 inet6 static
+address 3FE0::1
+netmask 64
+
+auto eth2
+iface eth2 inet dhcp
+\end{BVerbatim}
+
 
 \section{Instalar Quagga}
 %TODO: más configuración mínima de interfaces
