@@ -97,6 +97,24 @@ Partimos de dos Sistemas Autónomos con números 17 y 71 (curiosidad, son primos
 	\label{fig:topology}
 \end{figure}
 
+\hfill
+
+Esta topología lógica la llevamos a la práctica con Virtual Box, con cuatro máquinas Debian sin interfaz gŕafica, y con tarjetas de red virtuales configuradas como redes internas del siguiente modo:
+
+\begin{itemize}
+
+	\item R1: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{interAS} - Adaptador 3 NAT.
+	
+	\item R2: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{interAS} - Adaptador 3 NAT.
+	
+	\item R3: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{AS17Area1} - Adaptador 3 NAT.
+	
+	\item R4: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{AS71Subred} - Adaptador 3 NAT.
+
+\end{itemize}
+
+Con el NAT conseguimos salida a internet para poder descargar los ficheros de configuración. Con las otras conseguimos simular los switchs y conectar cada router por las interfaces correspondientes.
+
 
 \section{Instalar Quagga}
 %TODO: más configuración mínima de interfaces
