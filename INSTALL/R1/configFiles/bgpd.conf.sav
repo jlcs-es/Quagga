@@ -1,0 +1,19 @@
+!
+! Zebra configuration saved from vty
+!   2015/11/17 19:59:04
+!
+password manyhue
+!
+router bgp 17
+ bgp router-id 10.0.4.15
+ redistribute ospf
+ neighbor 2001:abcd::2 remote-as 71
+!
+ address-family ipv6
+ network 3fe0::/64
+ network 3fe0:0:1::/64
+ neighbor 2001:abcd::2 activate
+ exit-address-family
+!
+line vty
+!
