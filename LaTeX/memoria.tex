@@ -44,7 +44,7 @@
 
 \author{José Luis Cánovas Sánchez}
 \title{ARQUITECTURAS DE REDES AVANZADAS\\QUAGGA}
-\date{}
+
 \begin{document}
 \maketitle
 
@@ -53,8 +53,7 @@
 \end{center}
 
 \begin{abstract}
-	En este informe se redacta el desarrollo usando la herramienta QUAGGA para el despliegue del escenario de red IPv6.
-	%TODO: terminar
+	En este informe se redacta el despliegue de un escenario de red IPv6 usando la herramienta Quagga.
 \end{abstract}
 
 \tableofcontents
@@ -104,11 +103,11 @@ Esta topología lógica la llevamos a la práctica con Virtual Box, con cuatro m
 \begin{itemize}
 
 	\item R1: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{interAS} - Adaptador 3 NAT.
-	
+
 	\item R2: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{interAS} - Adaptador 3 NAT.
-	
+
 	\item R3: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{AS17Area1} - Adaptador 3 NAT.
-	
+
 	\item R4: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{AS71Subred} - Adaptador 3 NAT.
 
 \end{itemize}
@@ -136,23 +135,106 @@ iface eth2 inet dhcp
 \end{BVerbatim}
 
 
+Desde Quagga también se podrían configurar usando las órdenes:
+
+\begin{verbatim}
+	interface eth0
+	no shutdown
+	ipv6 address 3FE0:0:1::1/64
+\end{verbatim}
+
+Y sustituyendo eth0 y la dirección ipv6 por cada inerfaz correspondiente y su dirección.
+
+Como trabajamos con máquinas virtuales podemos trabajar con \textit{/etc/network/interfaces} para una topología inicial, y en caso de que ya no nos valga, modificar la configuración mediante Quagga para ir adaptándola, en vez de editar \textit{/etc/network/interfaces}.
+
+
 \section{Instalar Quagga}
-%TODO: más configuración mínima de interfaces
-%interface FastEthernet1/0
-%no ip address
-%duplex half
-%ipv6 address 3FE0:0:1::/64 eui-64
-%ipv6 enable
-%ipv6 ospf 100 area 0
+
+%TODO: http://www.nongnu.org/quagga/docs/docs-info.html#IPv6-Support
+
+Para facilitar las pruebas, hay preparado un fichero Makefile que recibe como parámetro el router a configurar (r1, r2, r3 o r4), y ejecuta un script \textit{install.sh} que instala por aptitude el paquete \textit{quagga}.
+ Con esto no es suficiente para que quagga funcione, ni tampoco para poder iniciar su consola de configuración. Para ello se crean en \textit{/etc/quagga/}
+ los ficheros \textit{zebra.conf}, \textit{bgpd.conf}, \textit{ospf6d.conf}, \textit{ripngd.conf} y \textit{vtysh.conf} con usuario quagga y grupo quaggavty.
+
+ A todos los ficheros menos a \textit{vtysh.conf} se les añade la línea \textit{password pwd} donde pwd será la contraseña para poder configurar el demonio por su propia terminal. El fichero \textit{vtysh.conf} configura la terminal vtysh, que permite controlar todos los demonios, al estilo de la terminal de un router Cisco, y para mayor comodidad, se escribe \textit{username root nopassword} para no necesitar iniciar sesión cada vez.
+
+ Con esto los demonios podrían iniciarse sin problemas, pero falta decirle a Quagga qué demonios iniciar. Para ello el fichero \textit{/etc/quagga/daemons} se reescribe con:
+
+ \begin{verbatim}
+	 zebra=yes
+	 bgpd=yes
+	 ospfd=no
+	 ospf6d=yes
+	 ripd=no
+	 ripngd=no
+	 isisd=no
+	 babeld=no
+ \end{verbatim}
+
+ Cambiando por yes o no según queramos activar o no cada demonio. El de zebra es obligatorio si queremos que se apliquen las tablas de rutas de los demonios al sistema real, pero si sólo se quiere ejecutar el protocolo sin afectar a la máquina, para pruebas por ejemplo, se puede desactivar.
+
+
+ Finalmente habría que reiniciar Quagga con \textit{/etc/init.d/quagga restart}, lo cual hace el Makefile automáticamente y facilita al añadir una regla exta de r1-r4 llamada restart.
+
+ 
 
 \section{Configuración de OSPF}
-%ipv6 router ospf 100
-%router-id 1.1.1.1
-%log-adjacency-changes
-%redistribute bgp 10
-%http://www.nongnu.org/quagga/docs/docs-info.html#OSPF6-area
+
+La configuración por comandos de OSPFv3 partiendo del punto de entrada de \textit{sudo vtysh} sería:
+
+\begin{lstlisting}
+configure terminal
+router ospf6
+router-id a.b.c.d
+interface ethx area e.f.g.h
+redistribute connected
+redistribute prot
+exit
+exit
+write
+\end{lstlisting}
+
+Donde a.b.c.d se sustituye por un ID para el router en forma de dirección ipv4. Para R1 elegimos 1.1.1.1 y para R3 2.2.2.2.
+
+Las áreas se identifican también con direcciones tipo ipv4 sustituyendo el valor en e.f.g.h, y nótese que no es necesario ir a la configuración de la interfaz y activar ahí ospf, quagga lo hace automáticamente desde la configuración de ospf al indicar la interfaz, aquí sustituyendo ethx por la interfaz correspondiente. Para las áreas la 0.0.0.0 será la backbone, y la 0.0.0.1 la segunda área de R3.
+
+Para anunciar las redes que no están incluidas en las áreas de OSPF, se debe indicar con redistribute, en el caso de R1 connected y bgp.
+%TODO: quitar bgp si al final no.
+
+Para R3 la línea de \textit{interface} habrá que ejecutarla una vez por cada interfaz y su área, y no haría falta el redistribute pues todas sus redes están en el AS gestionado con OSPF.
+
+\hfill
+
+Los ficheros de configuración generados al final por Quagga son casi idénticos a los de Cisco, y podrían ser la lista de comandos a ejecutar, excepto que añaden la información de las interfaces que deben usar ospf.
+
+%TODO: poner ficheros ospf6d.conf
+
 
 \section{Configuración de RIPng}
+
+La configuración por comandos de RIPng partiendo del punto de entrada de \textit{sudo vtysh} sería:
+
+\begin{lstlisting}
+configure terminal
+router ripng
+network ethx
+redistribute connected
+redistribute prot
+exit
+exit
+write
+\end{lstlisting}
+
+La configuración de RIPng es aún más sencilla que OSPF, donde además Quagga nos facilita el definir las redes a distribuir inticando directamente la interfaz donde antes pone network ethx.
+
+Para que R2 anuncie las rutas a redes que quedan fuera del AS administrado por RIPng, al igual que en OSPF, se debe añadir la orden redistribute, anunciando las redes directamente conectadas y las aprendidas por bgp.
+%TODO: quitar bgp si no se hace
+
+En R4 no hacen falta las líneas \textit{redistribute} y habría que poner la orden network ethx por cada una de las dos interfaces que tiene y quedan dentro del AS.
+
+Los ficheros de configuración del demonio ripngd generados son también parecidos a los de Cisco y en este caso son los comandos ejecutados antes:
+
+%TODO: poner ficheros ripngd.conf
 
 \section{Configuración de BGP}
 % http://www.cisco.com/c/en/us/td/docs/ios/12_2/ip/configuration/guide/fipr_c/1cfbgp.html#wp1001080
@@ -175,3 +257,6 @@ iface eth2 inet dhcp
 
 
 \end{document}
+
+
+% http://www.nongnu.org/quagga/docs/docs-info.html
