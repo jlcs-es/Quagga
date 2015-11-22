@@ -19,11 +19,13 @@ r2: install
 r3: install
 	cp R3/daemons /etc/quagga/daemons
 	cp R3/configFiles/ospf6d.conf /etc/quagga/ospf6d.conf
+	cp R3/configFiles/zebra.conf /etc/quagga/zebra.conf
 	$(MAKE) restart
 
 r4: install
 	cp R4/daemons /etc/quagga/daemons
 	cp R4/configFiles/ripngd.conf /etc/quagga/ripngd.conf
+	cp R4/configFiles/zebra.conf /etc/quagga/zebra.conf
 	$(MAKE) restart
 
 restart:
