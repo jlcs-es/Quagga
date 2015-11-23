@@ -18,4 +18,12 @@ echo 'password manyhue' > /etc/quagga/ripngd.conf
 echo 'username root nopassword' > /etc/quagga/vtysh.conf
 
 
+sysctl -w net.ipv6.conf.all.forwarding=1
+
+echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
+echo "Recuerde hacer en cada reinicio:"
+echo "   sysctl -w net.ipv6.conf.all.forwarding=1   "
+echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
+sleep 3
+
 echo export VTYSH_PAGER=more >> /etc/bash.bashrc
