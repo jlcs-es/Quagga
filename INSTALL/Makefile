@@ -31,4 +31,7 @@ r4: install
 restart:
 	/etc/init.d/quagga restart
 
+ipv6forward:
+	sysctl -w net.ipv6.conf.all.forwarding=1
+
 .PHONY: install, r1, r2, r3, r4, restart

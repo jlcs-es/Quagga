@@ -23,6 +23,8 @@ sysctl -w net.ipv6.conf.all.forwarding=1
 echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
 echo "Recuerde hacer en cada reinicio:"
 echo "   sysctl -w net.ipv6.conf.all.forwarding=1   "
+echo "O bien:"
+echo "   sudo make ipv6forward   "
 echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
 sleep 3
 
