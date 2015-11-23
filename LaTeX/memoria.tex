@@ -60,7 +60,7 @@
 
 \section{Introducción}
 
-Quagga es un proyecto de software que provee de utilidades para encaminamiento de red en sistemas UNIX, proveyendo el demonio zebra originario de otro proyecto y que permite aplicar configuraciones de algoritmos de encaminamiento a las tablas de red de la máquina. Los algoritmos se ejecutan como demonios que toman la información de la red y aplican protocolos conocidos, tales como OSPF, RIP, IS-IS y BGP, en múltiples de sus versiones, y por medio de zebra los aplican a la red.
+Quagga es un proyecto de software que provee de utilidades para encaminamiento de red en sistemas UNIX, con el demonio zebra permite aplicar las tablas de algoritmos de encaminamiento a las tablas de red de la máquina. Los algoritmos se ejecutan como demonios que toman la información de la red y aplican protocolos conocidos, tales como OSPF, RIP, IS-IS y BGP, en múltiples de sus versiones, y por medio de zebra los aplican a las tablas de red del sistema operativo.
 
 \begin{center}
 	\begin{BVerbatim}
@@ -78,15 +78,15 @@ Quagga es un proyecto de software que provee de utilidades para encaminamiento d
 	\end{BVerbatim}
 \end{center}
 
-Vamos a configurar tres de estos protocolos con Quagga en cuatro máquinas que harán las veces de routers.
+Vamos a configurar un par de estos protocolos con Quagga en cuatro máquinas que harán las veces de routers.
 En la sección 2 se muestra la topología que se va a implementar. En las secciones 3 a 6 se explicará cómo instalar y configurar Quagga con los mecanismos OSPFv3 y RIPng para IPv6.
 
-La topología usada en este estudio de Quagga se asemeja mucho a la de la práctica 1 de ARA, pero se puede llevar a otros proyectos, como LEGO, fácilmente. Más adelante se muestra la topología en \autoref{fig:topology}, y con hacer corresponder R1 y R2 con los routers de las organizaciones de LEGO, las redes XXXX:0:1::/64 con las subredes de cada organización, y las subredes XXXX::/64 con una subred un nivel más interna, tenemos la topología de LEGO ampliada. La salida a internet se debería realizar con tunelado a IPv4 en R1 y R2, si no se dispone de IPv6 pública. En caso de tener un rango de direcciones IPv6 públicas, habría que cambiar los valores de cada subred para que sean válidos, pero queda fuera de este estudio.
+La topología usada en este estudio de Quagga se asemeja mucho a la de la práctica 1 de ARA, pero se puede llevar a otros proyectos, como LEGO, fácilmente. Más adelante se muestra la topología en \autoref{fig:topology}, y con hacer corresponder R1 y R2 con los routers de las organizaciones de LEGO, las redes XXXX:\textbf{0:1}::/64 con las subredes de cada organización, y las subredes XXXX::/64 con una subred un nivel más interna, tenemos la topología de LEGO ampliada. La salida a internet se debería realizar con tunelado a IPv4 en R1 y R2, si no se dispone de IPv6 pública. En caso de tener un rango de direcciones IPv6 públicas, habría que cambiar los valores de cada subred para que sean válidos, pero queda fuera de este estudio.
 
 \section{Topología de trabajo}
 
 
-Partimos de dos Sistemas Autónomos con números 17 y 71 (curiosidad, son primos \hyperref{https://en.wikipedia.org/wiki/Permutable_prime}{}{}{\underline{permutables}}  entre sí) y mecanismo de encaminamiento interno por OSPF, con un área backbone y un área 1 stub para el AS17, un mecanismo basado en RIPng para el AS1 y BGP entre ambos AS, como se muestra en la \autoref{fig:topology}.
+Partimos de dos Sistemas Autónomos con números 17 y 71 (curiosidad, son primos \hyperref{https://en.wikipedia.org/wiki/Permutable_prime}{}{}{\underline{permutables}}  entre sí) y mecanismo de encaminamiento interno por OSPF, con un área backbone y un área 1 stub para el AS17, un mecanismo basado en RIPng para el AS71 y rutas estáticas entre ambos AS, como se muestra en la \autoref{fig:topology}.
 
 
 \begin{figure}[!h]
@@ -112,8 +112,6 @@ Esta topología lógica la llevamos a la práctica con Virtual Box, con cuatro m
 
 \end{itemize}
 
-Con las otras conseguimos simular los switchs y conectar cada router por las interfaces correspondientes.
-
 
 \section{Instalar Quagga}
 
@@ -121,7 +119,7 @@ Para facilitar las pruebas, hay preparado un fichero Makefile que recibe como pa
  Con esto no es suficiente para que quagga funcione, ni tampoco para poder iniciar su consola de configuración. Para ello se crean en \textit{/etc/quagga/}
  los ficheros \textit{zebra.conf}, \textit{ospf6d.conf}, \textit{ripngd.conf} y \textit{vtysh.conf} con usuario quagga y grupo quaggavty.
 
- A todos los ficheros menos a \textit{vtysh.conf} se les añade la línea \textit{password pwd} donde pwd será la contraseña para poder configurar el demonio por su propia terminal. El fichero \textit{vtysh.conf} configura la terminal vtysh, que permite controlar todos los demonios, al estilo de la terminal de un router Cisco, y para mayor comodidad, se escribe \textit{username root nopassword} para no necesitar iniciar sesión cada vez.
+ A todos los ficheros menos a \textit{vtysh.conf} se les añade la línea \textit{password pwd} donde pwd será la contraseña para poder configurar el demonio por su propia terminal. El fichero \textit{vtysh.conf} configura la terminal vtysh, que permite controlar todos los demonios, al estilo de la terminal de un router Cisco, y para mayor comodidad, se escribe \textit{username root nopassword} para no necesitar iniciar sesión cada vez que la usemos.
 
  Con esto los demonios podrían iniciarse sin problemas, pero falta decirle a Quagga qué demonios iniciar. Para ello el fichero \textit{/etc/quagga/daemons} se reescribe con:
 
@@ -138,14 +136,14 @@ Para facilitar las pruebas, hay preparado un fichero Makefile que recibe como pa
 
  Cambiando \textit{yes} o \textit{no} según queramos activar o no cada demonio. El de zebra es obligatorio si queremos que se apliquen las tablas de rutas de los demonios al sistema real, pero si sólo se quiere ejecutar el protocolo sin afectar a la máquina, para pruebas por ejemplo, se puede desactivar.
 
- En cuanto a que la máquina se quiera usar como router, se debe activar el forwarding de paquetes ipv6 a nivel de sistema operativo. En nuestro caso usamos la orden \textit{sysctl -w net.ipv6.conf.all.forwarding=1}. Para facilitar su ejecución en cada reinicio, existe una regla en el Makefile llamada \textit{ipv6forward} que ejecuta el comando. Si se quiere evitar ejecutarlo cada vez que se inicia la máquina, basta modificar la entrada correspondiente de \textit{/etc/sysctl}
+ En cuanto a que la máquina se quiera usar como router, se debe activar el forwarding de paquetes ipv6 a nivel de sistema operativo. En nuestro caso usamos la orden \textit{sysctl -w net.ipv6.conf.all.forwarding=1}. Para facilitar su ejecución en cada reinicio, existe una regla en el Makefile llamada \textit{ipv6forward} que ejecuta el comando. Si se quiere evitar ejecutarlo cada vez que se inicia la máquina, basta modificar la entrada correspondiente de \textit{/etc/sysctl}.
 
 
- Finalmente habría que reiniciar Quagga con \textit{/etc/init.d/quagga restart}, y existe en Makefile una regla extra llamada \textit{restart} para facilitarlo.
+ Finalmente habría que reiniciar Quagga con \textit{/etc/init.d/quagga restart}, y existe también en el Makefile una regla llamada \textit{restart} para facilitarlo.
  
 \section{Configuración de interfaces}
 
-La configuración de \textit{/etc/network/interfaces} sería, por ejemplo para R1:
+La configuración de \textit{/etc/network/interfaces} sería, por ejemplo, para R1:
 
 \begin{BVerbatim}
 auto lo
@@ -165,7 +163,7 @@ netmask 64
 \hfill
 
 
-Pero nosotros vamos a configurarlo desde Quagga usando las órdenes:
+Pero nosotros vamos a configurarlo desde Quagga usando las órdenes (abriendo la terminal con sudo vtysh):
 
 \hfil
 
