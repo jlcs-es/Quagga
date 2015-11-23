@@ -78,8 +78,8 @@ Quagga es un proyecto de software que provee de utilidades para encaminamiento d
 	\end{BVerbatim}
 \end{center}
 
-Vamos a configurar tres de estos protocolos con Quagga en cuatro máquinas que harán las veces de routers. %TODO: comprobar número de sección
-En la sección 2 se muestra la topología que se va a implementar. En las secciones 3 a 6 se explicará cómo instalar y configurar Quagga con los mecanismos OSPF, RIP y BGP para IPv6.
+Vamos a configurar tres de estos protocolos con Quagga en cuatro máquinas que harán las veces de routers.
+En la sección 2 se muestra la topología que se va a implementar. En las secciones 3 a 6 se explicará cómo instalar y configurar Quagga con los mecanismos OSPFv3 y RIPng para IPv6.
 
 La topología usada en este estudio de Quagga se asemeja mucho a la de la práctica 1 de ARA, pero se puede llevar a otros proyectos, como LEGO, fácilmente. Más adelante se muestra la topología en \autoref{fig:topology}, y con hacer corresponder R1 y R2 con los routers de las organizaciones de LEGO, las redes XXXX:0:1::/64 con las subredes de cada organización, y las subredes XXXX::/64 con una subred un nivel más interna, tenemos la topología de LEGO ampliada. La salida a internet se debería realizar con tunelado a IPv4 en R1 y R2, si no se dispone de IPv6 pública. En caso de tener un rango de direcciones IPv6 públicas, habría que cambiar los valores de cada subred para que sean válidos, pero queda fuera de este estudio.
 
@@ -102,17 +102,48 @@ Esta topología lógica la llevamos a la práctica con Virtual Box, con cuatro m
 
 \begin{itemize}
 
-	\item R1: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{interAS} - Adaptador 3 NAT.
+	\item R1: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{interAS}
 
-	\item R2: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{interAS} - Adaptador 3 NAT.
+	\item R2: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{interAS}
 
-	\item R3: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{AS17Area1} - Adaptador 3 NAT.
+	\item R3: Adaptador 1 Red Interna \textit{AS17} - Adaptador 2 Red Interna \textit{AS17Area1}
 
-	\item R4: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{AS71Subred} - Adaptador 3 NAT.
+	\item R4: Adaptador 1 Red Interna \textit{AS71} - Adaptador 2 Red Interna \textit{AS71Subred}
 
 \end{itemize}
 
-Con el NAT conseguimos salida a internet para poder descargar los ficheros de configuración. Con las otras conseguimos simular los switchs y conectar cada router por las interfaces correspondientes.
+Con las otras conseguimos simular los switchs y conectar cada router por las interfaces correspondientes.
+
+
+\section{Instalar Quagga}
+
+Para facilitar las pruebas, hay preparado un fichero Makefile que recibe como parámetro el router a configurar (r1, r2, r3 o r4), y ejecuta un script \textit{install.sh} que instala por aptitude el paquete \textit{quagga}.
+ Con esto no es suficiente para que quagga funcione, ni tampoco para poder iniciar su consola de configuración. Para ello se crean en \textit{/etc/quagga/}
+ los ficheros \textit{zebra.conf}, \textit{ospf6d.conf}, \textit{ripngd.conf} y \textit{vtysh.conf} con usuario quagga y grupo quaggavty.
+
+ A todos los ficheros menos a \textit{vtysh.conf} se les añade la línea \textit{password pwd} donde pwd será la contraseña para poder configurar el demonio por su propia terminal. El fichero \textit{vtysh.conf} configura la terminal vtysh, que permite controlar todos los demonios, al estilo de la terminal de un router Cisco, y para mayor comodidad, se escribe \textit{username root nopassword} para no necesitar iniciar sesión cada vez.
+
+ Con esto los demonios podrían iniciarse sin problemas, pero falta decirle a Quagga qué demonios iniciar. Para ello el fichero \textit{/etc/quagga/daemons} se reescribe con:
+
+ \begin{verbatim}
+	 zebra=yes
+	 bgpd=no
+	 ospfd=no
+	 ospf6d=yes
+	 ripd=no
+	 ripngd=yes
+	 isisd=no
+	 babeld=no
+ \end{verbatim}
+
+ Cambiando \textit{yes} o \textit{no} según queramos activar o no cada demonio. El de zebra es obligatorio si queremos que se apliquen las tablas de rutas de los demonios al sistema real, pero si sólo se quiere ejecutar el protocolo sin afectar a la máquina, para pruebas por ejemplo, se puede desactivar.
+
+ En cuanto a que la máquina se quiera usar como router, se debe activar el forwarding de paquetes ipv6 a nivel de sistema operativo. En nuestro caso usamos la orden \textit{sysctl -w net.ipv6.conf.all.forwarding=1}. Para facilitar su ejecución en cada reinicio, existe una regla en el Makefile llamada \textit{ipv6forward} que ejecuta el comando. Si se quiere evitar ejecutarlo cada vez que se inicia la máquina, basta modificar la entrada correspondiente de \textit{/etc/sysctl}
+
+
+ Finalmente habría que reiniciar Quagga con \textit{/etc/init.d/quagga restart}, y existe en Makefile una regla extra llamada \textit{restart} para facilitarlo.
+ 
+\section{Configuración de interfaces}
 
 La configuración de \textit{/etc/network/interfaces} sería, por ejemplo para R1:
 
@@ -129,134 +160,183 @@ auto eth1
 iface eth1 inet6 static
 address 3FE0::1
 netmask 64
-
-auto eth2
-iface eth2 inet dhcp
 \end{BVerbatim}
 
+\hfill
 
-Desde Quagga también se podrían configurar usando las órdenes:
 
-\begin{verbatim}
+Pero nosotros vamos a configurarlo desde Quagga usando las órdenes:
+
+\hfil
+
+\begin{BVerbatim}
+configure terminal
 	interface eth0
-	no shutdown
-	ipv6 address 3FE0:0:1::1/64
-\end{verbatim}
+		no shutdown
+		ipv6 address 3FE0:0:1::1/64
+		no ipv6 nd suppress-ra
+		ipv6 nd prefix 3fe0:0:1::/64 300 250 router-address
+\end{BVerbatim}
 
-Y sustituyendo eth0 y la dirección ipv6 por cada inerfaz correspondiente y su dirección.
+\hfil
 
-Como trabajamos con máquinas virtuales podemos trabajar con \textit{/etc/network/interfaces} para una topología inicial, y en caso de que ya no nos valga, modificar la configuración mediante Quagga para ir adaptándola, en vez de editar \textit{/etc/network/interfaces}.
-
-
-\section{Instalar Quagga}
-
-%TODO: http://www.nongnu.org/quagga/docs/docs-info.html#IPv6-Support
-
-Para facilitar las pruebas, hay preparado un fichero Makefile que recibe como parámetro el router a configurar (r1, r2, r3 o r4), y ejecuta un script \textit{install.sh} que instala por aptitude el paquete \textit{quagga}.
- Con esto no es suficiente para que quagga funcione, ni tampoco para poder iniciar su consola de configuración. Para ello se crean en \textit{/etc/quagga/}
- los ficheros \textit{zebra.conf}, \textit{bgpd.conf}, \textit{ospf6d.conf}, \textit{ripngd.conf} y \textit{vtysh.conf} con usuario quagga y grupo quaggavty.
-
- A todos los ficheros menos a \textit{vtysh.conf} se les añade la línea \textit{password pwd} donde pwd será la contraseña para poder configurar el demonio por su propia terminal. El fichero \textit{vtysh.conf} configura la terminal vtysh, que permite controlar todos los demonios, al estilo de la terminal de un router Cisco, y para mayor comodidad, se escribe \textit{username root nopassword} para no necesitar iniciar sesión cada vez.
-
- Con esto los demonios podrían iniciarse sin problemas, pero falta decirle a Quagga qué demonios iniciar. Para ello el fichero \textit{/etc/quagga/daemons} se reescribe con:
-
- \begin{verbatim}
-	 zebra=yes
-	 bgpd=yes
-	 ospfd=no
-	 ospf6d=yes
-	 ripd=no
-	 ripngd=no
-	 isisd=no
-	 babeld=no
- \end{verbatim}
-
- Cambiando por yes o no según queramos activar o no cada demonio. El de zebra es obligatorio si queremos que se apliquen las tablas de rutas de los demonios al sistema real, pero si sólo se quiere ejecutar el protocolo sin afectar a la máquina, para pruebas por ejemplo, se puede desactivar.
+Y sustituyendo eth0 y la dirección ipv6 por cada interfaz correspondiente y su dirección. Las líneas que incluyen \textit{nd} (neighbour discovery) se incluyen para enviar Router Advertisements (no suppress-ra) y definir la información del Prefix Information Option del router advertisement (nd prefix). Con esto la interfaz queda configurada y actúa como router.
 
 
- Finalmente habría que reiniciar Quagga con \textit{/etc/init.d/quagga restart}, lo cual hace el Makefile automáticamente y facilita al añadir una regla exta de r1-r4 llamada restart.
+En los ficheros que usa el Makefile de instalación se incluyen las interfaces ya configuradas en zebra.conf (fichero que configura lo relativo a interfaces y la red en general, independiente del protocolo de enrutamiento).
 
- 
+En ese mismo fichero también se encuentran las rutas estáticas que deben conocer R1 y R2 para conocer la red del otro AS. Una ruta estática se indica en el estado de \textit{configure terminal} con \textit{ipv6 route X:X::X:X/X  Y:Y::Y:Y}, donde la primera dirección indica una subred con prefijo, y la segunda el gateway. Hay que tener cuidado con la ayuda de la terminal, pues también indica que se puede poner una interfaz como gateway, pero quagga tomará esa información como que la interfaz está conectada a dicha subred directamente.
+
+\hfil
+
+El fichero de configuración \textit{zebra.conf} de R1, como ejemplo, es:
+
+\begin{lstlisting}
+!
+! Zebra configuration saved from vty
+!   2015/11/22 19:55:56
+!
+password manyhue
+!
+interface eth0
+ipv6 address 3fe0:0:1::1/64
+no ipv6 nd suppress-ra
+ipv6 nd prefix 3fe0:0:1::/64 300 250 router-address
+!
+interface eth1
+ipv6 address 2001:ABCD::1/64
+no ipv6 nd suppress-ra
+ipv6 nd prefix 2001:ABCD::/64 300 250 router-address
+!
+interface lo
+!
+ipv6 route 2cae::/42 2001:abcd::2
+!
+!
+!
+line vty
+!
+\end{lstlisting}
+
 
 \section{Configuración de OSPF}
 
 La configuración por comandos de OSPFv3 partiendo del punto de entrada de \textit{sudo vtysh} sería:
 
-\begin{lstlisting}
+\hfil
+
+\begin{BVerbatim}
 configure terminal
-router ospf6
-router-id a.b.c.d
-interface ethx area e.f.g.h
-redistribute connected
-redistribute prot
-exit
-exit
+	router ospf6
+		router-id a.b.c.d
+		interface ethx area e.f.g.h
+		redistribute connected
+		redistribute static
+		end
 write
-\end{lstlisting}
+\end{BVerbatim}
 
 Donde a.b.c.d se sustituye por un ID para el router en forma de dirección ipv4. Para R1 elegimos 1.1.1.1 y para R3 2.2.2.2.
 
 Las áreas se identifican también con direcciones tipo ipv4 sustituyendo el valor en e.f.g.h, y nótese que no es necesario ir a la configuración de la interfaz y activar ahí ospf, quagga lo hace automáticamente desde la configuración de ospf al indicar la interfaz, aquí sustituyendo ethx por la interfaz correspondiente. Para las áreas la 0.0.0.0 será la backbone, y la 0.0.0.1 la segunda área de R3.
 
-Para anunciar las redes que no están incluidas en las áreas de OSPF, se debe indicar con redistribute, en el caso de R1 connected y bgp.
-%TODO: quitar bgp si al final no.
+Para anunciar las redes que no están incluidas en las áreas de OSPF, se debe indicar con redistribute, en el caso de R1, connected y static.
 
-Para R3 la línea de \textit{interface} habrá que ejecutarla una vez por cada interfaz y su área, y no haría falta el redistribute pues todas sus redes están en el AS gestionado con OSPF.
+Para R3 la línea de \textit{interface} habrá que ejecutarla una vez por cada una de las dos interfaces y sus áreas, y no haría falta el redistribute pues todas sus redes están en el AS gestionado con OSPF.
 
 \hfill
 
 Los ficheros de configuración generados al final por Quagga son casi idénticos a los de Cisco, y podrían ser la lista de comandos a ejecutar, excepto que añaden la información de las interfaces que deben usar ospf.
 
-%TODO: poner ficheros ospf6d.conf
+\hfil
+
+El fichero de configuración \textit{ospf6d.conf} de R3, como ejemplo, es:
+
+\begin{lstlisting}
+!
+! Zebra configuration saved from vty
+!   2015/11/17 18:45:32
+!
+password manyhue
+!
+debug ospf6 lsa unknown
+!
+interface eth0
+ipv6 ospf6 network broadcast
+!
+interface eth1
+ipv6 ospf6 network broadcast
+!
+router ospf6
+router-id 2.2.2.2
+interface eth0 area 0.0.0.0
+interface eth1 area 0.0.0.1
+!
+line vty
+!
+\end{lstlisting}
 
 
 \section{Configuración de RIPng}
 
 La configuración por comandos de RIPng partiendo del punto de entrada de \textit{sudo vtysh} sería:
 
-\begin{lstlisting}
+\hfil
+
+\begin{BVerbatim}
 configure terminal
-router ripng
-network ethx
-redistribute connected
-redistribute prot
-exit
-exit
+	router ripng
+		network ethx
+		redistribute connected
+		redistribute static
+		exit
+	exit
 write
-\end{lstlisting}
+\end{BVerbatim}
 
 La configuración de RIPng es aún más sencilla que OSPF, donde además Quagga nos facilita el definir las redes a distribuir inticando directamente la interfaz donde antes pone network ethx.
 
-Para que R2 anuncie las rutas a redes que quedan fuera del AS administrado por RIPng, al igual que en OSPF, se debe añadir la orden redistribute, anunciando las redes directamente conectadas y las aprendidas por bgp.
-%TODO: quitar bgp si no se hace
+Para que R2 anuncie las rutas a redes que quedan fuera del AS administrado por RIPng, al igual que en OSPF, se debe añadir la orden redistribute, anunciando las redes directamente conectadas y las indicadas por rutas estáticas.
 
 En R4 no hacen falta las líneas \textit{redistribute} y habría que poner la orden network ethx por cada una de las dos interfaces que tiene y quedan dentro del AS.
 
 Los ficheros de configuración del demonio ripngd generados son también parecidos a los de Cisco y en este caso son los comandos ejecutados antes:
 
-%TODO: poner ficheros ripngd.conf
 
-\section{Configuración de BGP}
-% http://www.cisco.com/c/en/us/td/docs/ios/12_2/ip/configuration/guide/fipr_c/1cfbgp.html#wp1001080
+\hfil
 
-%
-%!
-%router bgp 13
-%bgp router-id 1.1.1.1
-%no bgp default ipv4-unicast
-%!--- Without configuring ""no bgp default ipv4-unicast"" only IPv4 will be !--- advertised
-%bgp log-neighbor-changes
-%neighbor 2001:ABCD::2 remote-as 50
-%!
-%address-family ipv6
-%neighbor 2001:ABCD::2 activate
-%network 3FE0:0:1::/64
-%network 3FE0::/64
-%exit-address-family
-%!
+El fichero de configuración \textit{ripngd.conf} de R2, como ejemplo, es:
+
+\begin{lstlisting}
+!
+! Zebra configuration saved from vty
+!   2015/11/17 20:15:56
+!
+password manyhue
+!
+router ripng
+network eth0
+redistribute connected
+redistribute static
+!
+line vty
+!
+\end{lstlisting}
+
+
+
+
+\begin{thebibliography}{99}
+	\bibitem{quaggaDoc}
+	Documentación HTML de Quagga.  \hyperref{http://www.nongnu.org/quagga/docs/docs-info.html}{}{}{\underline{Link}}
+	
+	\bibitem{tipsandtricks}
+	Tips \& tricks de Quagga. 
+	\hyperref{https://wiki.quagga.net/wiki/index.php/TipsNTricks}{}{}{\underline{Link}}
+	
+\end{thebibliography}
+
 
 
 \end{document}
 
-
-% http://www.nongnu.org/quagga/docs/docs-info.html

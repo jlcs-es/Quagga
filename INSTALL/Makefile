@@ -1,5 +1,5 @@
 all:
-	@echo "Elija opción: r1, r2, r3, r4, restart (service)"
+	@echo "Elija opción: r1, r2, r3, r4, restart, ipv6forward"
 
 install:
 	sh install.sh
@@ -28,10 +28,12 @@ r4: install
 	cp R4/zebra.conf /etc/quagga/zebra.conf
 	$(MAKE) restart
 
+ipv6forward:
+	sysctl -w net.ipv6.conf.all.forwarding=1
+	$(MAKE) restart
+
 restart:
 	/etc/init.d/quagga restart
 
-ipv6forward:
-	sysctl -w net.ipv6.conf.all.forwarding=1
 
-.PHONY: install, r1, r2, r3, r4, restart
+.PHONY: install, r1, r2, r3, r4, restart, ipv6forward
