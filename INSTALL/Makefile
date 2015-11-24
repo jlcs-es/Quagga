@@ -29,7 +29,11 @@ r4: install
 	$(MAKE) restart
 
 ipv6forward:
-	sysctl -w net.ipv6.conf.all.forwarding=1
+	sysctl -w net.ipv6.conf.all.autoconf = 0
+	sysctl -w net.ipv6.conf.all.accept_ra = 0
+	sysctl -w net.ipv6.conf.all.accept_redirects = 0
+	sysctl -w net.ipv6.conf.all.forwarding = 1
+	sysctl -w net.ipv6.conf.all.router_solicitations = 0
 	$(MAKE) restart
 
 restart:
