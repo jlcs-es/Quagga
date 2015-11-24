@@ -18,11 +18,11 @@ echo 'password manyhue' > /etc/quagga/ripngd.conf
 echo 'username root nopassword' > /etc/quagga/vtysh.conf
 
 
-sysctl -w net.ipv6.conf.all.autoconf = 0
-sysctl -w net.ipv6.conf.all.accept_ra = 0
-sysctl -w net.ipv6.conf.all.accept_redirects = 0
-sysctl -w net.ipv6.conf.all.forwarding = 1
-sysctl -w net.ipv6.conf.all.router_solicitations = 0
+sysctl -w net.ipv6.conf.all.autoconf=0
+sysctl -w net.ipv6.conf.all.accept_ra=0
+sysctl -w net.ipv6.conf.all.accept_redirects=0
+sysctl -w net.ipv6.conf.all.forwarding=1
+sysctl -w net.ipv6.conf.all.router_solicitations=0
 
 echo "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
 echo "Recuerde hacer en cada reinicio:"
